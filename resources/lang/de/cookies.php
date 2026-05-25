@@ -2,7 +2,7 @@
 return [
     'title' => 'Wir nutzen Cookies',
     'intro' => 'Diese Website verwendet Cookies, um die Benutzerfreundlichkeit zu verbessern.',
-    'link' => 'Werfen Sie einen Blick auf unser <a href=":url">Cookies Policy</a> für mehr Information.',
+    'link' => 'Werfen Sie einen Blick auf unsere <a href=":url">Datenschutzerklärung</a> für mehr Information.',
 
     'essentials' => 'Nur notwendige',
     'all' => 'Alles akzeptieren',
@@ -13,6 +13,13 @@ return [
         'less' => 'Weniger Details',
     ],
     'save' => 'Einstellungen speichern',
+    'cookie' => 'Cookie',
+    'purpose' => 'Zweck',
+    'duration' => 'Dauer',
+    'year' => 'Jahr|Jahre',
+    'day' => 'Tag|Tage',
+    'hour' => 'Stunde|Stunden',
+    'minute' => 'Minute|Minuten',
 
     'categories' => [
         'essentials' => [
