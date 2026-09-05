@@ -3,6 +3,7 @@
 use Whitecube\LaravelCookieConsent\CookiesManager;
 use Whitecube\LaravelCookieConsent\CookiesRegistrar;
 use Whitecube\LaravelCookieConsent\Sites\SiteResolver;
+use Illuminate\Support\Facades\Route;
 
 function consentCookie($response, string $name)
 {
@@ -113,3 +114,17 @@ it('opens current consent settings without resetting the consent cookie', functi
         ->toContain('value="marketing" id="cookies-policy-check-marketing" checked')
         ->and($response->headers->getCookies())->toBeEmpty();
 });
+
+    it('includes the settings script when consent is already stored', function () {
+        Route::get('/test-page', fn (CookiesManager $cookies) =>
+            $cookies->renderScripts() . $cookies->renderView()
+        );
+
+        $accepted = $this->post('http://beta.test/cookie-consent/accept-all');
+        $consent = consentCookie($accepted, 'custom_beta_consent');
+        $page = $this->withUnencryptedCookie('custom_beta_consent', $consent->getValue())
+            ->get('http://beta.test/test-page');
+
+        expect($page->content())->not->toContain('<aside id="cookies-policy"')
+            ->and($page->content())->toContain('[data-cookie-action="settings"]');
+    });

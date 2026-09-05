@@ -66,12 +66,3 @@
         </div>
     </div>
 </aside>
-
-{{-- STYLES & SCRIPT : feel free to remove them and add your own --}}
-
-<script data-cookie-consent>
-    {!! file_get_contents(LCC_ROOT . '/dist/script.js') !!}
-</script>
-<style data-cookie-consent>
-    {!! file_get_contents(LCC_ROOT . '/dist/style.css') !!}
-</style>

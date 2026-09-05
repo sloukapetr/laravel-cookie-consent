@@ -252,7 +252,17 @@ class CookiesManager
 
     public function getNoticeScripts(bool $withDefault): string
     {
-        return $withDefault ? $this->getDefaultScriptTag() : '';
+        $output = $withDefault ? $this->getDefaultScriptTag() : '';
+
+        $output .= '<script data-cookie-consent>'
+            . file_get_contents(LCC_ROOT . '/dist/script.js')
+            . '</script>';
+
+        $output .= '<style data-cookie-consent>'
+            . file_get_contents(LCC_ROOT . '/dist/style.css')
+            . '</style>';
+
+        return $output;
     }
 
     protected function getDefaultScriptTag(): string

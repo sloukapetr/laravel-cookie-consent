@@ -1,16 +1,24 @@
 var cookies = document.querySelector('#cookies-policy');
-var reset = document.querySelector('.cookiereset');
-var settings = document.querySelectorAll('[data-cookie-action="settings"]');
 
-if(reset) {
-    reset.addEventListener('submit', (event) => resetCookies(event))
-}
+document.addEventListener('submit', (event) => {
+    if (event.target.matches('[data-cookie-action="settings"]')) {
+        openSettings(event);
+    }
 
-settings.forEach((button) => {
-    button.addEventListener('submit', (event) => openSettings(event));
+    if (event.target.matches('.cookiereset, [data-cookie-action="reset"]')) {
+        resetCookies(event);
+    }
 });
 
-if(cookies) {
+document.addEventListener('cookieconsent:notice-added', initializeCookies);
+
+initializeCookies();
+
+function initializeCookies() {
+    cookies = document.querySelector('#cookies-policy');
+
+    if (!cookies) return;
+
     var customize = cookies.querySelector('.cookies__btn--customize');
     var details = cookies.querySelectorAll('.cookies__details');
     var acceptAll = cookies.querySelector('.cookiesBtn--accept');

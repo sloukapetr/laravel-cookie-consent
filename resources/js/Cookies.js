@@ -101,6 +101,8 @@ class LaravelCookieConsent {
                 document.body.appendChild(tag);
             }
         });
+
+        document.dispatchEvent(new CustomEvent('cookieconsent:notice-added'));
     }
 }
 
