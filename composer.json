@@ -1,6 +1,6 @@
 {
     "name": "whitecube/laravel-cookie-consent",
-    "description": "Register, configure and ask for cookies consent in a EU-compliant way.",
+    "description": "Multi-site cookie consent for Laravel: one app, many hostnames, separate consent per domain.",
     "keywords": [
         "whitecube",
         "laravel",
@@ -18,6 +18,10 @@
         {
             "name": "Toon Van den Bos",
             "email": "toon@whitecube.be"
+        },
+        {
+            "name": "Petr Slouka",
+            "email": "slouka@sloukapetr.cz"
         }
     ],
     "require": {
@@ -46,7 +50,8 @@
                 "Whitecube\\LaravelCookieConsent\\ServiceProvider"
             ],
             "aliases": {
-                "Cookies": "Whitecube\\LaravelCookieConsent\\Facades\\Cookies"
+                "Cookies": "Whitecube\\LaravelCookieConsent\\Facades\\Cookies",
+                "CookieConsentSite": "Whitecube\\LaravelCookieConsent\\Facades\\Site"
             }
         }
     },

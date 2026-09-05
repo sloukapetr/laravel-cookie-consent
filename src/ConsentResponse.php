@@ -41,6 +41,21 @@ class ConsentResponse
     }
 
     /**
+     * Collect the scripts that must run as long as consent is not granted.
+     */
+    public function handleRefusal(Cookie|CookiesGroup $instance): static
+    {
+        if(! $instance->hasRefusalCallback()) {
+            return $this;
+        }
+
+        // Cookies are deliberately ignored: nothing may be stored without consent.
+        $this->attachScripts($instance->getRefusalResult()->getScripts());
+
+        return $this;
+    }
+
+    /**
      * Add multiple cookies to the consent response.
      */
     public function attachCookies(array $cookies): static

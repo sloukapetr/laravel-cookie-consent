@@ -31,18 +31,22 @@ We've built this package with flexibility in our mind: you'll be able to customi
 
 1. [Installation](#installation)
 2. [Usage](#usage)
-3. [Registering cookies](#registering-cookies)
+3. [Multi-site](#multi-site)
+    - [Configuring sites](#configuring-sites)
+    - [Third-party services](#third-party-services)
+    - [Site-scoped cookies](#site-scoped-cookies)
+4. [Registering cookies](#registering-cookies)
     - [Choosing a cookie category](#choosing-a-cookie-category)
     - [Cookie definition](#cookie-definition)
-4. [Checking for consent](#checking-for-consent)
+5. [Checking for consent](#checking-for-consent)
     - [Using the Cookies facade](#using-the-cookies-facade)
     - [Using dependency injection](#using-dependency-injection)
-5. [Customization](#customization)
+6. [Customization](#customization)
     - [The views](#the-views)
     - [Styling](#styling)
     - [Javascript](#javascript)
     - [Textual content and translations](#textual-content-and-translations)
-6. [A few useful tips](#a-few-useful-tips)
+7. [A few useful tips](#a-few-useful-tips)
     - [Cookie Policy Details Page](#cookie-policy-details-page)
     - [Let your users change their mind](#let-your-users-change-their-mind)
     - [Storing user preferences for multiple sub-domains](#storing-user-preferences-for-multiple-sub-domains)
@@ -60,7 +64,7 @@ This package will auto-register its service provider.
 
 First, publish the package's files:
 
-1. Publish the `CookiesServiceProvider` file: `php artisan vendor:publish --tag=laravel-cookie-consent-service-provider`
+1. Publish the `CookiesServiceProvider` file: `php artisan vendor:publish --tag=cookieconsent-provider`
 2. Register the Service Provider in your application. For applications using Laravel 9 or 10, add the Service Provider to the `providers` array in `config/app.php`:
     ```php
     'providers' => ServiceProvider::defaultProviders()->merge([
@@ -78,12 +82,15 @@ First, publish the package's files:
         App\Providers\CookiesServiceProvider::class,
     ];
     ```
-3. Publish the configuration file: `php artisan vendor:publish --tag=laravel-cookie-consent-config`
+3. Publish the configuration file: `php artisan vendor:publish --tag=cookieconsent-config`
 
 If you want to customize the consent modal's views:
 
-1. Publish the customizable views: `php artisan vendor:publish --tag=laravel-cookie-consent-views`
-2. Publish the translation files: `php artisan vendor:publish --tag=laravel-cookie-consent-lang`
+1. Publish the customizable views: `php artisan vendor:publish --tag=cookieconsent-views`
+2. Publish the translation files: `php artisan vendor:publish --tag=cookieconsent-lang`
+3. Publish the compiled script and stylesheet: `php artisan vendor:publish --tag=cookieconsent-assets`
+
+Everything at once: `php artisan vendor:publish --tag=cookieconsent`.
 
 More on [customization](#customization) below.
 
@@ -93,7 +100,7 @@ Now, we'll have to register and configure the used cookies in the freshly publis
 namespace App\Providers;
 
 use Whitecube\LaravelCookieConsent\Consent;
-use Whitecube\LaravelCookieConsent\Facades\Cookies;
+use Whitecube\LaravelCookieConsent\CookiesRegistrar;
 use Whitecube\LaravelCookieConsent\CookiesServiceProvider as ServiceProvider;
 
 class CookiesServiceProvider extends ServiceProvider
@@ -101,31 +108,26 @@ class CookiesServiceProvider extends ServiceProvider
     /**
      * Define the cookies users should be aware of.
      */
-    protected function registerCookies(): void
+    protected function registerCookies(CookiesRegistrar $cookies): void
     {
-        if (app()->environment() === 'production') {
-            // Register Laravel's base cookies under the "required" cookies section:
-            Cookies::essentials()
-                ->session()
-                ->csrf();
-    
-            // Register all Analytics cookies at once using one single shorthand method:
-            Cookies::analytics()
-                ->google(
-                    id: config('cookieconsent.google_analytics.id'),
-                    anonymizeIp: config('cookieconsent.google_analytics.anonymize_ip')
-                );
-        
-            // Register custom cookies under the pre-existing "optional" category:
-            Cookies::optional()
-                ->name('darkmode_enabled')
-                ->description('This cookie helps us remember your preferences regarding the interface\'s brightness.')
-                ->duration(120)
-                ->accepted(fn(Consent $consent, MyDarkmode $darkmode) => $consent->cookie(value: $darkmode->getDefaultValue()));
-        }
+        // Register Laravel's base cookies under the "required" cookies section:
+        $cookies->essentials()
+            ->session()
+            ->csrf();
+
+        // Register custom cookies under the pre-existing "optional" category:
+        $cookies->optional()
+            ->name('darkmode_enabled')
+            ->description('This cookie helps us remember your preferences regarding the interface\'s brightness.')
+            ->duration(120)
+            ->accepted(fn(Consent $consent, MyDarkmode $darkmode) => $consent->cookie(value: $darkmode->getDefaultValue()));
     }
 }
 ```
+
+Third-party services such as Google Analytics are not registered here: they are declared per site in `config/cookieconsent.php`, see [Multi-site](#multi-site) below.
+
+This method runs once per request, for the site matching the incoming hostname.
 
 More details on the available [cookie registration](#registering-cookies) methods below.
 
@@ -146,6 +148,118 @@ Then, let's add consent scripts and modals to the application's views using the 
     @cookieconsentview
 </body>
 </html>
+```
+
+## Multi-site
+
+A single Laravel application can serve any number of websites, each one with its own consent cookie, cookie policy and third-party services. Consent given on one hostname never leaks onto another, since every site stores its own, distinctly named cookie.
+
+### Configuring sites
+
+Sites are declared in `config/cookieconsent.php` and matched against the incoming request's hostname. The first matching site wins, so catch-all entries go last.
+
+```php
+'sites' => [
+    'acme' => [
+        'hosts' => ['@app.domains.acme', 'acme.test', '*.dev.acme.com', 'www.acme.com'],
+        'cookie' => ['name' => null, 'duration' => (60 * 24 * 365), 'domain' => null],
+        'policy' => 'acme.cookies',
+        'services' => [
+            'google_analytics' => ['id' => env('GOOGLE_ANALYTICS_ID_ACME')],
+        ],
+    ],
+    'globex' => [
+        'hosts' => ['@app.domains.globex', 'globex.test', 'www.globex.org'],
+        'policy' => 'https://www.globex.org/cookies',
+        'services' => [
+            'meta_pixel' => ['id' => env('META_PIXEL_ID_GLOBEX')],
+        ],
+    ],
+],
+```
+
+Hostnames accept literal values, wildcards (`*.acme.com`, `*` for anything) and references to other config values prefixed with `@`. The latter lets you reuse the exact values already powering your `Route::domain()` groups:
+
+```php
+Route::domain(config('app.domains.acme'))->group(function () {
+    // ...
+});
+```
+
+Entries resolving to `null` are silently ignored, so referencing an environment that is not configured everywhere is safe.
+
+When `cookie.name` is left empty it is derived from the site key: `acme` becomes `acme_cookie_consent`. `policy` accepts either a route name or an absolute URL, which is handy when the policy route lives inside another domain group.
+
+The active site is available anywhere through its facade:
+
+```php
+use Whitecube\LaravelCookieConsent\Facades\Site;
+
+Site::key();                       // 'acme'
+Site::is('acme', 'globex');        // true
+Site::current()->cookieName();     // 'acme_cookie_consent'
+Site::current()->get('services.google_analytics.id');
+```
+
+### Third-party services
+
+Services listed under a site's `services` key are registered automatically: their cookies are documented in the consent modal and their scripts are only ever injected once the user consented to the matching category. A service whose `id` is empty is skipped, which is how you disable it for a given site.
+
+Four drivers ship with the package:
+
+| Driver | Category | Notes |
+|---|---|---|
+| `google_analytics` | analytics | accepts `anonymize_ip` |
+| `hotjar` | analytics | |
+| `meta_pixel` | marketing | |
+| `sklik` | marketing | accepts a `cookies` map (`name => minutes`) |
+
+```php
+'services' => [
+    'google_analytics' => ['id' => env('GOOGLE_ANALYTICS_ID_ACME'), 'anonymize_ip' => true],
+    'hotjar' => ['id' => env('HOTJAR_ID_ACME')],
+    'meta_pixel' => ['id' => env('META_PIXEL_ID_ACME')],
+    'sklik' => ['id' => env('SKLIK_RTG_ID_ACME'), 'cookies' => ['sid' => 60 * 24 * 30]],
+],
+```
+
+Register your own driver from any service provider:
+
+```php
+use Whitecube\LaravelCookieConsent\Consent;
+use Whitecube\LaravelCookieConsent\CookiesRegistrar;
+use Whitecube\LaravelCookieConsent\Facades\Cookies;
+
+Cookies::extendService('hotjar', fn(CookiesRegistrar $cookies, array $config) => $cookies
+    ->analytics()
+    ->name('_hjSession')
+    ->duration(30)
+    ->accepted(fn(Consent $consent) => $consent->script('<script>/* ' . $config['id'] . ' */</script>'))
+);
+```
+
+An unknown service name throws an exception at registration time, so configuration typos surface immediately.
+
+### Site-scoped cookies
+
+Cookies that only exist on one of your websites can be wrapped in `forSite()`:
+
+```php
+protected function registerCookies(CookiesRegistrar $cookies): void
+{
+    $cookies->essentials()->session()->csrf();
+
+    $cookies->forSite('acme', function (CookiesRegistrar $cookies) {
+        $cookies->optional()
+            ->name('acme_layout')
+            ->description('Remembers the preferred portal layout.')
+            ->duration(60 * 24 * 30);
+    });
+
+    $cookies->forSite(['acme', 'globex'], function (CookiesRegistrar $cookies) {
+        // ...
+    });
+}
 ```
 
 ## Registering cookies
@@ -280,6 +394,20 @@ $cookie->accepted(function(Consent $consent, MyDependencyService $service) {
 });
 ```
 
+#### `refused(Closure $callback)`
+
+The counterpart of `accepted()`: it runs as long as consent has **not** been granted, on every request. Some services require an explicit "no consent" signal rather than silence — Seznam Sklik for instance mandates a retargeting hit carrying `consent: 0` before consent and `consent: 1` after it, and Google Consent Mode works the same way.
+
+```php
+use Whitecube\LaravelCookieConsent\Consent;
+
+$cookie->refused(function(Consent $consent) {
+    $consent->script('<script>/* signal that consent was not granted */</script>');
+});
+```
+
+Only scripts are collected here: cookies defined in a refusal callback are deliberately discarded, since nothing may be stored without consent.
+
 #### Custom cookie attributes
 
 When building your own cookie notice designs, you might need extra attributes on the `Cookie` instances. We've got you covered!
@@ -349,7 +477,7 @@ However, this world shouldn't be a boring place and even if cookie notices are p
 
 ### The views
 
-A good starting point is to take a look at this package's default markup. If not already published, you can access the views using `php artisan vendor:publish --tag=laravel-cookie-consent-views`, this will copy our blade files to your app's `resources/views/vendor/cookie-consent` directory.
+A good starting point is to take a look at this package's default markup. If not already published, you can access the views using `php artisan vendor:publish --tag=cookieconsent-views`, this will copy our blade files to your app's `resources/views/vendor/cookie-consent` directory.
 
 Here you can express your unlimited creativity and push the boundaries of conventionnal Cookie notices or popups. 
 
@@ -411,7 +539,7 @@ Since most implementations have the same needs, we've separated our Javascript c
 
 Most of the displayed strings are defined in the `cookieConsent::cookies` translation files. The package ships with a few supported locales, but if yours is not yet included we would greatly appreciate a PR.
 
-If not already published, you can edit or fill the translation files using `php artisan vendor:publish --tag=laravel-cookie-consent-lang`, this will copy our translation files to your app's `vendor/cookieConsent` "lang" path.
+If not already published, you can edit or fill the translation files using `php artisan vendor:publish --tag=cookieconsent-lang`, this will copy our translation files to your app's `vendor/cookieConsent` "lang" path.
 
 ## A few useful tips
 

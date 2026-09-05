@@ -9,9 +9,8 @@ use Whitecube\LaravelCookieConsent\Http\Controllers\AcceptEssentialsController;
 
 Route::group([
     'as' => 'cookieconsent.',
-    'domain' => config('cookieconsent.url.domain'),
-    'prefix' => config('cookieconsent.url.prefix'),
-    'middleware' => config('cookieconsent.url.middleware')
+    'prefix' => config('cookieconsent.routes.prefix'),
+    'middleware' => config('cookieconsent.routes.middleware')
 ], function() {
     Route::get('script', ScriptController::class)
         ->name('script');
