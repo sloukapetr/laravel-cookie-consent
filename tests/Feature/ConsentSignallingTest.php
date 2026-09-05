@@ -31,6 +31,17 @@ it('sends the sklik retargeting hit with consent 0 before any consent', function
         ->and($output)->not->toContain('consent:1');
 });
 
+    it('can disable the default consent styles', function () {
+        config()->set('cookieconsent.assets.styles', false);
+
+        $output = managerForSite('alpha')->renderScripts();
+
+        expect($output)->not->toContain('<style data-cookie-consent>')
+        ->and($output)->not->toContain(file_get_contents(LCC_ROOT . '/dist/style.css'))
+        ->and(managerForSite('alpha')->getNoticeScripts(true))
+        ->not->toContain('<style data-cookie-consent>');
+    });
+
 it('sends the sklik retargeting hit with consent 1 once consent is granted', function () {
     $manager = managerForSite('alpha');
     $manager->accept('*');

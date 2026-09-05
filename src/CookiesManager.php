@@ -258,9 +258,11 @@ class CookiesManager
             . file_get_contents(LCC_ROOT . '/dist/script.js')
             . '</script>';
 
-        $output .= '<style data-cookie-consent>'
-            . file_get_contents(LCC_ROOT . '/dist/style.css')
-            . '</style>';
+        if (config('cookieconsent.assets.styles', true) === true) {
+            $output .= '<style data-cookie-consent>'
+                . file_get_contents(LCC_ROOT . '/dist/style.css')
+                . '</style>';
+        }
 
         return $output;
     }

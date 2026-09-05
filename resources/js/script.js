@@ -1,4 +1,5 @@
 var cookies = document.querySelector('#cookies-policy');
+let text = {};
 
 document.addEventListener('submit', (event) => {
     if (event.target.matches('[data-cookie-action="settings"]')) {
@@ -24,7 +25,12 @@ function initializeCookies() {
     var acceptAll = cookies.querySelector('.cookiesBtn--accept');
     var acceptEssentials = cookies.querySelector('.cookiesBtn--essentials');
     var configure = cookies.querySelector('.cookies__customize');
-    var text = JSON.parse(cookies.getAttribute('data-text'))
+    try {
+        var parsedText = JSON.parse(cookies.getAttribute('data-text') || '{}');
+        text = parsedText && typeof parsedText === 'object' ? parsedText : {};
+    } catch (error) {
+        text = {};
+    }
 
     initCookies();
 
@@ -116,8 +122,8 @@ function changeText(hide, isOpen, event) {
     if(hide) return;
 
     event.target.textContent = isOpen
-        ? text.more
-        : text.less
+        ? text.more || event.target.textContent
+        : text.less || event.target.textContent
 }
 
 function hideNotice(hide, isOpen) {
