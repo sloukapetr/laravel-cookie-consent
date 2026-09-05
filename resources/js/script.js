@@ -13,7 +13,7 @@ document.addEventListener('submit', (event) => {
 
 document.addEventListener('cookieconsent:notice-added', initializeCookies);
 
-initializeCookies();
+document.addEventListener('DOMContentLoaded', initializeCookies);
 
 function initializeCookies() {
     cookies = document.querySelector('#cookies-policy');
