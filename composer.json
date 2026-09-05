@@ -1,5 +1,5 @@
 {
-    "name": "whitecube/laravel-cookie-consent",
+    "name": "sloukapetr/laravel-cookie-consent",
     "description": "Multi-site cookie consent for Laravel: one app, many hostnames, separate consent per domain.",
     "keywords": [
         "whitecube",
