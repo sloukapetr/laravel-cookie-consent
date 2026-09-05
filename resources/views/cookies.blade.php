@@ -32,7 +32,7 @@
                                 <input type="hidden" name="categories[]" value="{{ $category->key() }}" />
                                 <input type="checkbox" name="categories[]" value="{{ $category->key() }}" id="cookies-policy-check-{{ $category->key() }}" checked="checked" disabled="disabled" />
                             @else
-                                <input type="checkbox" name="categories[]" value="{{ $category->key() }}" id="cookies-policy-check-{{ $category->key() }}" />
+                                <input type="checkbox" name="categories[]" value="{{ $category->key() }}" id="cookies-policy-check-{{ $category->key() }}" @checked(collect($category->getCookies())->every(fn ($cookie) => $consent->hasConsentFor($cookie->name))) />
                             @endif
                             <span class="cookies__box">
                                 <strong class="cookies__label">{{ $category->title }}</strong>

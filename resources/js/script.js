@@ -1,9 +1,14 @@
 var cookies = document.querySelector('#cookies-policy');
 var reset = document.querySelector('.cookiereset');
+var settings = document.querySelectorAll('[data-cookie-action="settings"]');
 
 if(reset) {
     reset.addEventListener('submit', (event) => resetCookies(event))
 }
+
+settings.forEach((button) => {
+    button.addEventListener('submit', (event) => openSettings(event));
+});
 
 if(cookies) {
     var customize = cookies.querySelector('.cookies__btn--customize');
@@ -57,6 +62,13 @@ function resetCookies(event) {
     event.preventDefault();
     if(document.querySelector('#cookies-policy')) return;
     window.LaravelCookieConsent.reset()
+}
+
+function openSettings(event) {
+    event.preventDefault();
+
+    window.LaravelCookieConsent.request(window.LaravelCookieConsent.config.settings)
+        .then((response) => window.LaravelCookieConsent.addNotice(response.data));
 }
 
 function resize() {

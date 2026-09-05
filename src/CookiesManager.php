@@ -278,6 +278,7 @@ class CookiesManager
     {
         return view('cookie-consent::cookies', [
             'cookies' => $this->registrar,
+            'consent' => $this,
             'policy' => $this->site()?->policyUrl(),
             'site' => $this->site()?->key,
         ])->render();
@@ -293,11 +294,12 @@ class CookiesManager
             'accept.essentials' => route('cookieconsent.accept.essentials'),
             'accept.configuration' => route('cookieconsent.accept.configuration'),
             'reset' => route('cookieconsent.reset'),
+            'settings' => route('cookieconsent.settings'),
             default => null,
         };
 
         if(! $url) {
-            throw new \InvalidArgumentException('Cookie consent action "' . $action . '" does not exist. Try one of these: "accept.all", "accept.essentials", "accept.configuration", "reset".');
+            throw new \InvalidArgumentException('Cookie consent action "' . $action . '" does not exist. Try one of these: "accept.all", "accept.essentials", "accept.configuration", "settings", "reset".');
         }
 
         $attributes = array_merge([

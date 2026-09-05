@@ -31,28 +31,48 @@ class LaravelCookieConsent {
         return axios.post(url, data);
     }
 
-    addScripts(data) {
+    async addScripts(data) {
         if (!data.scripts) {
             return;
         }
 
-        data.scripts.forEach(script => {
-            const scriptRegex = /<script[^]*<\/script>/;
-            if (!scriptRegex.test(script)) {
-                console.error('Invalid script tag: ' + script);
-            }
-            let tmp = document.createElement('div');
-            tmp.innerHTML = script;
+        for (const script of data.scripts) {
+            const temporaryElement = document.createElement("div");
+            temporaryElement.innerHTML = script;
 
-            let tag = document.createElement('script');
-            tag.textContent = tmp.querySelector('script').textContent;
-            for (const attr of tmp.querySelector('script').attributes) {
-                tag.setAttribute(attr.name, attr.value);
-            }
-            tag.setAttribute('data-cookie-consent', true);
+            const source = temporaryElement.querySelector("script");
+            const tag = document.createElement("script");
 
-            document.head.appendChild(tag);
-        });
+            tag.textContent = source.textContent;
+
+            for (const attribute of source.attributes) {
+                tag.setAttribute(attribute.name, attribute.value);
+            }
+
+            tag.setAttribute("data-cookie-consent", "true");
+
+            try {
+                await new Promise((resolve, reject) => {
+                    if (tag.src) {
+                        tag.addEventListener("load", resolve, { once: true });
+                        tag.addEventListener(
+                            "error",
+                            () => reject(new Error(`Failed to load script: ${tag.src}`)),
+                            { once: true }
+                        );
+                    }
+
+                    document.head.appendChild(tag);
+
+                    if (!tag.src) {
+                        resolve();
+                    }
+                });
+            } catch (error) {
+                console.error(error.message);
+                throw error;
+            }
+        }
     }
 
     addNotice(data) {

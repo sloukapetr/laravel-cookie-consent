@@ -492,6 +492,7 @@ In order to add buttons, we'd recommend using the package's `@cookieconsentbutto
 - `@cookieconsentbutton('accept.essentials')`: renders a button targetting this package's "consent to essential cookies only" API route ;
 - `@cookieconsentbutton('accept.configuration')`: renders a button targetting this package's "consent to custom cookies selection" API route. Beware that this route requires the selected cookie categories as the request's payload ;
 - `@cookieconsentbutton('reset')`: renders a button targetting this package's "reset cookie configuration" API route.
+- `@cookieconsentbutton('settings')`: renders a button that opens the current cookie settings without resetting the existing consent.
 
 ### Styling
 
