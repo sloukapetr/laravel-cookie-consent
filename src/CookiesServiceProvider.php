@@ -11,15 +11,17 @@ abstract class CookiesServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->booted(function () {
-            $this->registerCookies();
-        });
+        // Queued instead of executed: definitions are replayed whenever the
+        // active site changes, so each hostname gets its own cookie set.
+        $this->app->make(CookiesDefinitions::class)->push(
+            fn(CookiesRegistrar $cookies) => $this->registerCookies($cookies)
+        );
     }
 
     /**
      * Define the cookies users should be aware of.
      */
-    abstract protected function registerCookies(): void;
+    abstract protected function registerCookies(CookiesRegistrar $cookies): void;
 
     /**
      * Bootstrap any application services.

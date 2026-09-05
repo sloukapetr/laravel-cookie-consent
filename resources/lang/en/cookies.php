@@ -34,6 +34,10 @@ return [
             'title' => 'Optional cookies',
             'description' => 'These cookies enable features that could improve your user experience, but their absence will not impact your ability to browse our website.',
         ],
+        'marketing' => [
+            'title' => 'Marketing cookies',
+            'description' => 'These cookies are used to measure the performance of our campaigns and to display advertising that is relevant to you, here and on other websites.',
+        ],
     ],
 
     'defaults' => [
@@ -44,5 +48,12 @@ return [
         '_ga_ID' => 'Used by Google Analytics to persist session state.',
         '_gid' => 'Used by Google Analytics to identify the user.',
         '_gat' => 'Used by Google Analytics to throttle the request rate.',
+        '_fbp' => 'Used by Meta (Facebook) to identify browsers for advertising measurement and targeting purposes.',
+        '_fbc' => 'Stores the last Meta (Facebook) ad click that brought you to our website.',
+        '_hjSessionUser' => 'Used by Hotjar to recognize the same visitor across visits.',
+        '_hjSession' => 'Used by Hotjar to hold the data of the current visitor session.',
+        '_hjFirstSeen' => 'Used by Hotjar to determine whether this is the visitor\'s first session.',
+        '_hjAbsoluteSessionInProgress' => 'Used by Hotjar to measure the first page view of a session.',
+        'sklik' => 'Used by Seznam Sklik for retargeting and advertising campaign measurement.',
     ],
 ];

@@ -3,6 +3,7 @@
 namespace Whitecube\LaravelCookieConsent;
 
 use Illuminate\Support\Facades\Config;
+use Whitecube\LaravelCookieConsent\Facades\Site;
 
 class EssentialCookiesCategory extends CookiesCategory
 {
@@ -11,9 +12,13 @@ class EssentialCookiesCategory extends CookiesCategory
      */
     public function consent(): static
     {
-        return $this->cookie(function(Cookie $cookie) {
-            $cookie->name(Config::get('cookieconsent.cookie.name'))
-                ->duration(Config::get('cookieconsent.cookie.duration'))
+        if(! ($site = Site::current())) {
+            return $this;
+        }
+
+        return $this->cookie(function(Cookie $cookie) use ($site) {
+            $cookie->name($site->cookieName())
+                ->duration($site->cookieDuration())
                 ->description(__('cookieConsent::cookies.defaults.consent'));
         });
     }

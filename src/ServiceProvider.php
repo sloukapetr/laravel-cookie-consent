@@ -3,8 +3,12 @@
 namespace Whitecube\LaravelCookieConsent;
 
 
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider as Provider;
+use Whitecube\LaravelCookieConsent\Http\Middleware\ResolveCookieConsentSite;
+use Whitecube\LaravelCookieConsent\Sites\ServiceRegistry;
+use Whitecube\LaravelCookieConsent\Sites\SiteResolver;
 
 class ServiceProvider extends Provider
 {
@@ -19,9 +23,25 @@ class ServiceProvider extends Provider
         
         $this->mergeConfigFrom(LCC_ROOT.'/config/cookieconsent.php', 'cookieconsent');
 
-        $this->app->singleton(CookiesRegistrar::class, function () {
+        $this->app->singleton(SiteResolver::class, fn($app) => new SiteResolver($app['config']));
+        $this->app->singleton(ServiceRegistry::class);
+        $this->app->singleton(CookiesDefinitions::class);
+
+        $this->registerDefaultServices();
+
+        $this->app->singleton(CookiesRegistrar::class, function ($app) {
+            $site = $app->make(SiteResolver::class)->current();
+
             $registrar = new CookiesRegistrar();
+
+            // Shared upfront so definitions may safely resolve the registrar again.
+            $app->instance(CookiesRegistrar::class, $registrar);
+
             $registrar->essentials()->consent();
+
+            $app->make(ServiceRegistry::class)->applyTo($registrar, $site);
+            $app->make(CookiesDefinitions::class)->applyTo($registrar);
+
             return $registrar;
         });
     }
@@ -31,31 +51,87 @@ class ServiceProvider extends Provider
      */
     public function boot()
     {
-        $this->publishes([
-            LCC_ROOT.'/stubs/CookiesServiceProvider.php' => app_path('Providers/CookiesServiceProvider.php'),
-        ], 'laravel-cookie-consent-service-provider');
-
-        $this->publishes([
-            LCC_ROOT.'/config/cookieconsent.php' => config_path('cookieconsent.php'),
-        ], 'laravel-cookie-consent-config');
+        $this->registerPublishables();
 
         $this->loadViewsFrom(
             LCC_ROOT.'/resources/views', 'cookie-consent'
         );
 
+        $this->loadTranslationsFrom(LCC_ROOT.'/resources/lang', 'cookieConsent');
+
+        $this->registerBladeDirectives();
+        $this->registerMiddleware();
+
+        $this->loadRoutesFrom(LCC_ROOT.'/routes/web.php');
+    }
+
+    /**
+     * Define the third-party services that can be enabled from a site's configuration.
+     */
+    protected function registerDefaultServices(): void
+    {
+        $this->app->make(ServiceRegistry::class)
+            ->extend('google_analytics', fn(CookiesRegistrar $cookies, array $config) => $cookies
+                ->analytics()
+                ->google(
+                    id: $config['id'],
+                    anonymizeIp: (bool) ($config['anonymize_ip'] ?? true),
+                )
+            )
+            ->extend('meta_pixel', fn(CookiesRegistrar $cookies, array $config) => $cookies
+                ->marketing()
+                ->meta(id: $config['id'])
+            )
+            ->extend('hotjar', fn(CookiesRegistrar $cookies, array $config) => $cookies
+                ->analytics()
+                ->hotjar(id: $config['id'])
+            )
+            ->extend('sklik', fn(CookiesRegistrar $cookies, array $config) => $cookies
+                ->marketing()
+                ->sklik(id: $config['id'], cookies: $config['cookies'] ?? [])
+            );
+    }
+
+    /**
+     * Define everything the application is allowed to publish and customize.
+     */
+    protected function registerPublishables(): void
+    {
+        $this->publishes([
+            LCC_ROOT.'/config/cookieconsent.php' => config_path('cookieconsent.php'),
+        ], ['cookieconsent', 'cookieconsent-config']);
+
         $this->publishes([
             LCC_ROOT.'/resources/views' => resource_path('views/vendor/cookie-consent'),
-        ], 'laravel-cookie-consent-views');
-
-        $this->loadTranslationsFrom(LCC_ROOT.'/resources/lang', 'cookieConsent');
+        ], ['cookieconsent', 'cookieconsent-views']);
 
         $this->publishes([
             realpath(LCC_ROOT.'/resources/lang') => $this->app->langPath('vendor/cookieConsent'),
-        ], 'laravel-cookie-consent-lang');
+        ], ['cookieconsent', 'cookieconsent-lang']);
 
-        $this->registerBladeDirectives();
+        $this->publishes([
+            LCC_ROOT.'/stubs/CookiesServiceProvider.php' => app_path('Providers/CookiesServiceProvider.php'),
+        ], ['cookieconsent', 'cookieconsent-provider']);
 
-        $this->loadRoutesFrom(LCC_ROOT.'/routes/web.php');
+        $this->publishes([
+            LCC_ROOT.'/dist' => public_path('vendor/cookie-consent'),
+        ], ['cookieconsent', 'cookieconsent-assets']);
+    }
+
+    /**
+     * Make sure the site handling the request is resolved on every web request.
+     */
+    protected function registerMiddleware(): void
+    {
+        if (! $this->app->bound(Kernel::class)) {
+            return;
+        }
+
+        $kernel = $this->app->make(Kernel::class);
+
+        if (method_exists($kernel, 'prependMiddlewareToGroup')) {
+            $kernel->prependMiddlewareToGroup('web', ResolveCookieConsentSite::class);
+        }
     }
 
     /**

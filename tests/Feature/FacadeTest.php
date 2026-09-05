@@ -3,8 +3,11 @@
 use Whitecube\LaravelCookieConsent\CookiesRegistrar;
 use Whitecube\LaravelCookieConsent\EssentialCookiesCategory;
 use Whitecube\LaravelCookieConsent\Facades\Cookies;
+use Whitecube\LaravelCookieConsent\Facades\Site;
 
 it('transfers method calls to the registrar', function() {
+    Site::use('plain');
+
     Cookies::essentials()->csrf();
     Cookies::essentials()->name('foo')->duration(120);
 

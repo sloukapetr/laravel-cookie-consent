@@ -6,70 +6,118 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | URL configuration
+    | Routes
     |--------------------------------------------------------------------------
     |
-    | These values determine the package's API route URLs. Both values are
-    | nullable and represent the same concepts as Laravel's routing parameters.
+    | The package registers one single set of consent endpoints, shared by every
+    | site: generated URLs always follow the hostname of the current request,
+    | so there is no domain to configure here.
+    |
+    | Keep the "web" middleware group: the consent cookie is then encrypted the
+    | same way on the way out and on the way in.
     |
     */
 
-    'url' => [
-        'domain' => null,
-        'middleware' => [],
+    'routes' => [
         'prefix' => 'cookie-consent',
+        'middleware' => ['web'],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Consent cookie configuration
+    | Sites
     |--------------------------------------------------------------------------
     |
-    | In order to keep track of the user's preferences, this package stores
-    | an anonymized cookie. You do not need to register this cookie in the
-    | package's cookie manager as it is done automatically (under "essentials").
+    | Every website served by this application, keyed by an arbitrary
+    | identifier and matched against the incoming request's hostname. Add as
+    | many entries as you need; single-site applications simply keep the one
+    | catch-all entry below.
     |
-    | The duration parameter represents the cookie's lifetime in minutes.
+    | hosts             Literal hostnames ("example.test"), wildcards
+    |                   ("*.example.com", "*" for anything) or references to
+    |                   other config values prefixed with "@" (for instance
+    |                   "@app.domains.example", so you can reuse the very same
+    |                   values as your Route::domain() groups). Entries
+    |                   resolving to null are ignored, which makes it safe to
+    |                   reference environments that are not always configured.
+    |                   The first matching site wins, so keep catch-all entries
+    |                   last. When nothing matches, no site is activated and the
+    |                   consent notice is not rendered.
     |
-    | The domain parameter, when defined, determines the cookie's activity domain.
-    | For multiple sub-domains, prefix your domain with "." (eg: ".mydomain.com").
+    | cookie.name       Name of the anonymized cookie storing the user's
+    |                   choices. It is registered under "essentials"
+    |                   automatically. When null, it is derived from the site
+    |                   key ("my_site" becomes "my_site_cookie_consent").
+    |                   Distinct names are what keeps consent given on one
+    |                   hostname from leaking onto another.
+    | cookie.duration   Lifetime in minutes.
+    | cookie.domain     Activity domain. Prefix with "." to share the consent
+    |                   across sub-domains (eg: ".mydomain.com").
+    |
+    | policy            Route name or absolute URL of the cookie policy page.
+    |
+    | services          Third-party services enabled on this site. Their cookies
+    |                   are declared automatically and their scripts are only
+    |                   ever injected once the user consented to the matching
+    |                   category. Services without an "id" are skipped, so one
+    |                   is disabled by leaving its ID empty.
+    |
+    |                   Available out of the box: "google_analytics",
+    |                   "meta_pixel", "hotjar" and "sklik". Register your own
+    |                   from any service provider with:
+    |                   Cookies::extendService('name', fn($cookies, $config) => …)
+    |
+    |                   Sklik accepts an extra "cookies" map (name => minutes)
+    |                   since Seznam does not publish a stable cookie list.
+    |
+    |--------------------------------------------------------------------------
+    |
+    | Example, several websites in one application:
+    |
+    | 'sites' => [
+    |     'acme' => [
+    |         'hosts' => ['@app.domains.acme', 'acme.test', '*.acme.com'],
+    |         'cookie' => ['name' => null, 'duration' => (60 * 24 * 365), 'domain' => null],
+    |         'policy' => 'acme.cookies',
+    |         'services' => [
+    |             'google_analytics' => ['id' => env('GOOGLE_ANALYTICS_ID_ACME'), 'anonymize_ip' => true],
+    |         ],
+    |     ],
+    |     'globex' => [
+    |         'hosts' => ['@app.domains.globex', 'globex.test', '*.globex.org'],
+    |         'cookie' => ['name' => null, 'duration' => (60 * 24 * 180), 'domain' => '.globex.org'],
+    |         'policy' => 'globex.cookies',
+    |         'services' => [
+    |             'meta_pixel' => ['id' => env('META_PIXEL_ID_GLOBEX')],
+    |         ],
+    |     ],
+    | ],
     |
     */
 
-    'cookie' => [
-        'name' => Str::slug(env('APP_NAME', 'laravel'), '_').'_cookie_consent',
-        'duration' => (60 * 24 * 365),
-        'domain' => null,
-    ],
+    'sites' => [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Legal page configuration
-    |--------------------------------------------------------------------------
-    |
-    | Most cookie notices display a link to a dedicated page explaining
-    | the extended cookies usage policy. If your application has such a page
-    | you can add its route name here.
-    |
-    */
+        'default' => [
 
-    'policy' => null,
+            'hosts' => ['*'],
 
-    /* Google Analytics configuration
-    |--------------------------------------------------------------------------
-    |
-    | If you use Google Analytics, you can configure the package to automatically
-    | load the Google Analytics script when the user gives his consent.
-    |
-    | The ID parameter is required and represents your Google Analytics ID.
-    |
-    | The anonymize parameter is optional and determines whether the user's IP
-    | address should be anonymized before being sent to Google Analytics.
-    |
-    */
-    'google_analytics' => [
-        'id' => env('GOOGLE_ANALYTICS_ID', ""),
-        'anonymize_ip' => env('GOOGLE_ANALYTICS_ANONYMIZE_IP', true)
+            'cookie' => [
+                'name' => Str::slug(env('APP_NAME', 'laravel'), '_').'_cookie_consent',
+                'duration' => (60 * 24 * 365),
+                'domain' => null,
+            ],
+
+            'policy' => null,
+
+            'services' => [
+                'google_analytics' => [
+                    'id' => env('GOOGLE_ANALYTICS_ID'),
+                    'anonymize_ip' => env('GOOGLE_ANALYTICS_ANONYMIZE_IP', true),
+                ],
+            ],
+
+        ],
+
     ],
 
 ];

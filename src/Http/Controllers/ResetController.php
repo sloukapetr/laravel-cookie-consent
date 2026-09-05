@@ -17,9 +17,13 @@ class ResetController
                 'notice' => $cookies->getNoticeMarkup(),
             ]);
 
+        if (! ($site = $cookies->site())) {
+            return $response;
+        }
+
         return $response->withoutCookie(
-            cookie: config('cookieconsent.cookie.name'),
-            domain: config('cookieconsent.cookie.domain'),
+            cookie: $site->cookieName(),
+            domain: $site->cookieDomain(),
         );
     }
 }

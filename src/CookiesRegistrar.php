@@ -34,11 +34,34 @@ class CookiesRegistrar
     }
 
     /**
+     * Access the pre-defined "marketing" consent-category.
+     */
+    public function marketing(): CookiesCategory
+    {
+        return $this->getOrMakeCategory('marketing', function(string $key) {
+            return new MarketingCookiesCategory($key);
+        });
+    }
+
+    /**
      * Access the pre-defined "optional" consent-category.
      */
     public function optional(): CookiesCategory
     {
         return $this->getOrMakeCategory('optional');
+    }
+
+    /**
+     * Run the given definitions only when one of the given sites
+     * is handling the current request.
+     */
+    public function forSite(string|array $keys, Closure $definitions): static
+    {
+        if (Facades\Site::is(...(array) $keys)) {
+            $definitions($this);
+        }
+
+        return $this;
     }
 
     /**

@@ -5,6 +5,9 @@ namespace Whitecube\LaravelCookieConsent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie as CookieFacade;
 use Symfony\Component\HttpFoundation\Cookie as CookieComponent;
+use Whitecube\LaravelCookieConsent\Sites\ServiceRegistry;
+use Whitecube\LaravelCookieConsent\Sites\Site;
+use Whitecube\LaravelCookieConsent\Sites\SiteResolver;
 
 class CookiesManager
 {
@@ -14,17 +17,54 @@ class CookiesManager
     protected CookiesRegistrar $registrar;
 
     /**
+     * The site resolver.
+     */
+    protected SiteResolver $sites;
+
+    /**
+     * The current request.
+     */
+    protected Request $request;
+
+    /**
      * The user's current consent preferences.
      */
     protected ?array $preferences = null;
 
     /**
+     * Whether the consent preferences have been read yet.
+     */
+    protected bool $loaded = false;
+
+    /**
      * Create a new Service Manager instance.
      */
-    public function __construct(CookiesRegistrar $registrar, Request $request)
+    public function __construct(CookiesRegistrar $registrar, SiteResolver $sites, Request $request)
     {
         $this->registrar = $registrar;
-        $this->preferences = $this->getCurrentConsentSettings($request);
+        $this->sites = $sites;
+        $this->request = $request;
+    }
+
+    /**
+     * Retrieve the site handling the current request.
+     */
+    public function site(): ?Site
+    {
+        return $this->sites->current($this->request);
+    }
+
+    /**
+     * Retrieve the user's consent preferences for the current site.
+     */
+    protected function preferences(): ?array
+    {
+        if (! $this->loaded) {
+            $this->preferences = $this->getCurrentConsentSettings($this->request);
+            $this->loaded = true;
+        }
+
+        return $this->preferences;
     }
 
     /**
@@ -32,7 +72,11 @@ class CookiesManager
      */
     protected function getCurrentConsentSettings(Request $request): ?array
     {
-        $preferences = ($raw = $request->cookie(config('cookieconsent.cookie.name')))
+        if (! ($site = $this->site())) {
+            return null;
+        }
+
+        $preferences = ($raw = $request->cookie($site->cookieName()))
             ? json_decode($raw, true)
             : null;
 
@@ -41,7 +85,7 @@ class CookiesManager
         }
 
         // Check duration in case application settings have changed since the cookie was set.
-        if($preferences['consent_at'] + (config('cookieconsent.cookie.duration') * 60) < time()) {
+        if($preferences['consent_at'] + ($site->cookieDuration() * 60) < time()) {
             return null;
         }
 
@@ -63,6 +107,16 @@ class CookiesManager
     }
 
     /**
+     * Register a custom third-party service driver.
+     */
+    public function extendService(string $name, \Closure $driver): static
+    {
+        app(ServiceRegistry::class)->extend($name, $driver);
+
+        return $this;
+    }
+
+    /**
      * Transfer all undefined method calls to the registrar.
      */
     public function __call(string $method, array $arguments)
@@ -76,14 +130,18 @@ class CookiesManager
      */
     public function shouldDisplayNotice(): bool
     {
-        if(! $this->preferences) {
+        if(! $this->site()) {
+            return false;
+        }
+
+        if(! $this->preferences()) {
             return true;
         }
 
         // Check if each defined cookie has been shown to the user yet.
         return array_reduce($this->registrar->getCategories(), function($state, $category) {
             return $state ? true : array_reduce($category->getCookies(), function(bool $state, Cookie $cookie) {
-                return $state ? true : !array_key_exists($cookie->name, $this->preferences);
+                return $state ? true : !array_key_exists($cookie->name, $this->preferences());
             }, false);
         }, false);
     }
@@ -93,7 +151,7 @@ class CookiesManager
      */
     public function hasConsentFor(string $key): bool
     {
-        if(! $this->preferences) {
+        if(! ($preferences = $this->preferences())) {
             return false;
         }
 
@@ -111,7 +169,7 @@ class CookiesManager
             : [$key];
 
         foreach($cookies as $cookie) {
-            if(! boolval($this->preferences[$cookie] ?? false)) return false;
+            if(! boolval($preferences[$cookie] ?? false)) return false;
         }
 
         return true;
@@ -122,22 +180,27 @@ class CookiesManager
      */
     public function accept(string|array $categories = '*'): ConsentResponse
     {
+        if(! ($site = $this->site())) {
+            return new ConsentResponse();
+        }
+
         if(! is_array($categories) || ! $categories) {
             $categories = array_map(fn($category) => $category->key(), $this->registrar->getCategories());
         }
 
         $this->preferences = $this->makeConsentSettings($categories);
+        $this->loaded = true;
 
         $response = $this->getConsentResponse();
-        $response->attachCookie($this->makeConsentCookie());
+        $response->attachCookie($this->makeConsentCookie($site));
 
         return $response;
     }
 
     /**
-     * Call all the consented cookie callbacks and gather their
-     * scripts and/or cookies that should be returned along the
-     * current request's response.
+     * Call all the cookie callbacks matching the current consent state and
+     * gather their scripts and/or cookies that should be returned along
+     * the current request's response.
      */
     protected function getConsentResponse(): ConsentResponse
     {
@@ -145,7 +208,7 @@ class CookiesManager
             return array_reduce($category->getDefined(), function(ConsentResponse $response, Cookie|CookiesGroup $instance) {
                 return $this->hasConsentFor($instance->name)
                     ? $response->handleConsent($instance)
-                    : $response;
+                    : $response->handleRefusal($instance);
             }, $response);
         }, new ConsentResponse());
     }
@@ -153,14 +216,14 @@ class CookiesManager
     /**
      * Create a new cookie instance for the given consented categories.
      */
-    protected function makeConsentCookie(): CookieComponent
+    protected function makeConsentCookie(Site $site): CookieComponent
     {
         return CookieFacade::make(
-            name: config('cookieconsent.cookie.name'),
+            name: $site->cookieName(),
             value: json_encode($this->preferences),
-            minutes: config('cookieconsent.cookie.duration'),
-            domain: config('cookieconsent.cookie.domain'),
-            secure: (config('app.env') == 'local') ? false : true
+            minutes: $site->cookieDuration(),
+            domain: $site->cookieDomain(),
+            secure: $this->request->isSecure()
         );
     }
 
@@ -169,9 +232,16 @@ class CookiesManager
      */
     public function renderScripts(bool $withDefault = true): string
     {
-        $output = $this->shouldDisplayNotice()
-            ? $this->getNoticeScripts($withDefault)
-            : $this->getConsentedScripts($withDefault);
+        if(! $this->site()) {
+            return '';
+        }
+
+        $output = $this->getNoticeScripts($withDefault);
+
+        // Refusal callbacks must run before consent, so scripts are always collected.
+        foreach ($this->getConsentResponse()->getResponseScripts() ?? [] as $tag) {
+            $output .= $tag;
+        }
 
         if(strlen($output)) {
             $output = '<!-- Cookie Consent -->' . $output;
@@ -183,17 +253,6 @@ class CookiesManager
     public function getNoticeScripts(bool $withDefault): string
     {
         return $withDefault ? $this->getDefaultScriptTag() : '';
-    }
-
-    protected function getConsentedScripts(bool $withDefault): string
-    {
-        $output = $this->getNoticeScripts($withDefault);
-
-        foreach ($this->getConsentResponse()->getResponseScripts() ?? [] as $tag) {
-            $output .= $tag;
-        }
-
-        return $output;
     }
 
     protected function getDefaultScriptTag(): string
@@ -217,13 +276,10 @@ class CookiesManager
 
     public function getNoticeMarkup(): string
     {
-        if($policy = config('cookieconsent.policy')) {
-            $policy = route($policy);
-        }
-
         return view('cookie-consent::cookies', [
             'cookies' => $this->registrar,
-            'policy' => $policy,
+            'policy' => $this->site()?->policyUrl(),
+            'site' => $this->site()?->key,
         ])->render();
     }
 
