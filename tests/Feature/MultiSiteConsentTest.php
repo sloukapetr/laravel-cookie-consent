@@ -98,3 +98,18 @@ it('resets the consent cookie of the current site', function () {
     expect($cookie)->not->toBeNull()
         ->and($cookie->getValue())->toBeEmpty();
 });
+
+it('opens current consent settings without resetting the consent cookie', function () {
+    $accepted = $this->post('http://beta.test/cookie-consent/accept-all');
+    $consent = consentCookie($accepted, 'custom_beta_consent');
+
+    $response = $this->withUnencryptedCookie('custom_beta_consent', $consent->getValue())
+        ->withHeaders(['Accept' => 'application/json'])
+        ->post('http://beta.test/cookie-consent/settings');
+
+    expect($response->status())->toBe(200)
+        ->and($response->json())->toHaveKeys(['status', 'scripts', 'notice'])
+        ->and($response->json('notice'))
+        ->toContain('value="marketing" id="cookies-policy-check-marketing" checked')
+        ->and($response->headers->getCookies())->toBeEmpty();
+});
