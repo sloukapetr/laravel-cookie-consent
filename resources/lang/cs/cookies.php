@@ -3,8 +3,9 @@ return [
     'title' => 'Používáme cookies',
     'intro' => 'Tyto webové stránky používají soubory cookie za účelem zlepšení celkového uživatelského komfortu.',
     'link' => 'Další informace naleznete v <a href=":url">Zásadách používání</a>.',
+    'customize_intro' => 'Vyberte kategorie, se kterými souhlasíte.',
 
-    'essentials' => 'Nezbytné',
+    'essentials' => 'Pouze nezbyzné',
     'all' => 'Přijmout vše',
     'customize' => 'Přizpůsobit',
     'manage' => 'Spravovat',

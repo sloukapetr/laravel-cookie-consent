@@ -57,6 +57,13 @@ class ServiceProvider extends Provider
             LCC_ROOT.'/resources/views', 'cookie-consent'
         );
 
+        if ($this->app->bound('livewire.finder')) {
+            \Livewire\Livewire::component(
+                'cookie-consent',
+                \Whitecube\LaravelCookieConsent\Livewire\CookieConsent::class,
+            );
+        }
+
         $this->loadTranslationsFrom(LCC_ROOT.'/resources/lang', 'cookieConsent');
 
         $this->registerBladeDirectives();

@@ -3,6 +3,7 @@ return [
     'title' => 'We use cookies',
     'intro' => 'This website uses cookies in order to enhance the overall user experience.',
     'link' => 'Take a look at our <a href=":url">Cookies Policy</a> for more information.',
+    'customize_intro' => 'Select the categories you consent to.',
 
     'essentials' => 'Only essentials',
     'all' => 'Accept all',
